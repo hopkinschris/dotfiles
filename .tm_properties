@@ -1,0 +1,14 @@
+theme = "83091B89-765E-4F0D-9275-0EC6CB084126"
+fontName = "SF Mono"
+fontSize = 12
+
+softWrap = false
+tabSize  = 2
+softTabs = true
+
+saveOnBlur = true
+
+exclude = "{$exclude,.git,.DS_Store,*.rdb}"
+excludeInBrowser = "{$excludeInBrowser,log,tmp}"
+
+include = "{$include,.*}"

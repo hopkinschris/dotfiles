@@ -1,0 +1,6 @@
+[user]
+  name = Christopher Hopkins
+  email = chris@hopkins.io
+[core]
+  editor = mate -w
+  excludesfile = /Users/chris/.gitignore
