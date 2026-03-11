@@ -1,6 +1,6 @@
 local return_code="%(?..%{$fg[red]%}%? ↵%{$reset_color%})"
 
-PROMPT='$HOST:%~$(git_prompt_info) %(!.#.$) '
+PROMPT='$(scutil --get LocalHostName 2>/dev/null || echo ${HOST%%.*}):%~$(git_prompt_info) %(!.#.$) '
 
 ZSH_THEME_GIT_PROMPT_PREFIX=" %{$fg[white]%}"
 ZSH_THEME_GIT_PROMPT_SUFFIX="%{$reset_color%}"
