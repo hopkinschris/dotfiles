@@ -1,6 +1,10 @@
 [user]
   name = Christopher Hopkins
-  email = chris@hopkins.io
+  email = ch@incognito.engineering
+
 [core]
   editor = mate -w
-  excludesfile = /Users/chris/.gitignore
+  excludesfile = /Users/j413/.gitignore
+
+[init]
+  defaultBranch = master
