@@ -3,8 +3,6 @@ fontName = "SF Mono"
 fontSize = 12
 
 softWrap = false
-tabSize  = 2
-softTabs = true
 
 saveOnBlur = true
 

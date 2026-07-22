@@ -104,9 +104,22 @@ export EDITOR="/usr/local/bin/mate -w"
 # Postgres.app command line tools
 export PATH="$PATH:/Applications/Postgres.app/Contents/Versions/latest/bin"
 
-# Add RVM to PATH for scripting. Make sure this is the last PATH variable change.
-export PATH="$PATH:$HOME/.rvm/bin"
+# Legacy Runtime Manager(s)
+#
+# These are kept for legacy projects only. New projects should use Mise.
+# Uncomment as needed when working on legacy projects/repositories.
+#
+# RVM (Ruby Version Manager)
+# export PATH="$PATH:$HOME/.rvm/bin"
+#
+# NVM (Node Version Manager)
+# export NVM_DIR="$HOME/.nvm"
+# [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+# [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+# Canonical Runtime Manager
+#
+# Activate Mise (Loaded last to ensure path precedence)
+if command -v mise >/dev/null 2>&1; then
+  eval "$(mise activate zsh)"
+fi

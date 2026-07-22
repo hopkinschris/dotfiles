@@ -1,0 +1,73 @@
+#!/bin/zsh
+
+set -u
+
+repo_root=$(git rev-parse --show-toplevel) || exit 1
+cd "$repo_root" || exit 1
+
+check_status=0
+
+run_check() {
+  local label=$1
+  shift
+
+  if "$@"; then
+    printf '  [OK]   %s\n' "$label"
+  else
+    printf '  [FAIL] %s\n' "$label" >&2
+    check_status=1
+  fi
+}
+
+check_final_newlines() {
+  local file last_byte
+  local newline_status=0
+
+  while IFS= read -r -d $'\0' file; do
+    [[ -f "$file" && -s "$file" ]] || continue
+    LC_ALL=C grep -Iq . "./$file" || continue
+
+    last_byte=$(tail -c 1 "./$file" | od -An -t x1 | tr -d '[:space:]')
+    if [[ "$last_byte" != "0a" ]]; then
+      printf 'Missing final newline: %s\n' "$file" >&2
+      newline_status=1
+    fi
+  done < <(git ls-files -z --cached --others --exclude-standard)
+
+  return "$newline_status"
+}
+
+check_untracked_whitespace() {
+  local file output
+  local whitespace_status=0
+
+  while IFS= read -r -d $'\0' file; do
+    [[ -f "$file" ]] || continue
+
+    output=$(git --no-pager diff --no-index --check /dev/null "./$file" 2>&1)
+    if [[ -n "$output" ]]; then
+      printf '%s\n' "$output" >&2
+      whitespace_status=1
+    fi
+  done < <(git ls-files -z --others --exclude-standard)
+
+  return "$whitespace_status"
+}
+
+printf 'Checking dotfiles...\n'
+
+run_check 'Unstaged whitespace' git --no-pager diff --check
+run_check 'Staged whitespace' git --no-pager diff --cached --check
+run_check 'Untracked whitespace' check_untracked_whitespace
+run_check 'Zsh syntax' zsh -n .zshrc .oh-my-zsh/custom/themes/foo.zsh-theme
+run_check 'Final newlines' check_final_newlines
+run_check 'macOS Icon ignore pattern' git check-ignore -q -- $'Icon\r'
+run_check 'macOS HFS ignore pattern' git check-ignore -q -- \
+  $'.HFS+ Private Directory Data\r'
+
+if (( check_status != 0 )); then
+  printf '\nDotfiles checks failed.\n' >&2
+  exit "$check_status"
+fi
+
+printf '\nAll dotfiles checks passed.\n'

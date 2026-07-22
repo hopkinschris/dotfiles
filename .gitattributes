@@ -1,0 +1,5 @@
+# Normalize detected text files to LF in both the repository and working tree.
+* text=auto eol=lf
+
+# Preserve the intentional CR characters in macOS filename patterns.
+.gitignore -text

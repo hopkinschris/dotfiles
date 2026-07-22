@@ -4,7 +4,7 @@
 
 [core]
   editor = mate -w
-  excludesfile = /Users/j413/.gitignore
+  excludesfile = ~/.gitignore
 
 [init]
   defaultBranch = master
