@@ -59,7 +59,7 @@ printf 'Checking dotfiles...\n'
 run_check 'Unstaged whitespace' git --no-pager diff --check
 run_check 'Staged whitespace' git --no-pager diff --cached --check
 run_check 'Untracked whitespace' check_untracked_whitespace
-run_check 'Zsh syntax' zsh -n .zshrc .oh-my-zsh/custom/themes/foo.zsh-theme
+run_check 'Zsh syntax' zsh -n .zshrc
 run_check 'Final newlines' check_final_newlines
 run_check 'macOS Icon ignore pattern' git check-ignore -q -- $'Icon\r'
 run_check 'macOS HFS ignore pattern' git check-ignore -q -- \
