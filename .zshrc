@@ -34,12 +34,6 @@ git_prompt() {
 PROMPT='$(scutil --get LocalHostName 2>/dev/null || echo ${HOST%%.*}):%~$(git_prompt) %(!.#.$) '
 RPROMPT='%(?..%F{red}%? ↵%f)'
 
-# Default text editor
-export EDITOR="/usr/local/bin/mate -w"
-
-# Postgres.app command line tools
-export PATH="$PATH:/Applications/Postgres.app/Contents/Versions/latest/bin"
-
 # Development environment manager
 if command -v mise >/dev/null 2>&1; then
   eval "$(mise activate zsh)"

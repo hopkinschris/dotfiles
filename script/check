@@ -37,29 +37,73 @@ check_final_newlines() {
   return "$newline_status"
 }
 
-check_untracked_whitespace() {
+check_repository_whitespace() {
   local file output
   local whitespace_status=0
 
   while IFS= read -r -d $'\0' file; do
-    [[ -f "$file" ]] || continue
+    [[ -f "$file" && -s "$file" ]] || continue
+    LC_ALL=C grep -Iq . "./$file" || continue
 
     output=$(git --no-pager diff --no-index --check /dev/null "./$file" 2>&1)
     if [[ -n "$output" ]]; then
       printf '%s\n' "$output" >&2
       whitespace_status=1
     fi
-  done < <(git ls-files -z --others --exclude-standard)
+  done < <(git ls-files -z --cached --others --exclude-standard)
 
   return "$whitespace_status"
 }
 
+check_shell_environment() {
+  local output
+
+  if ! output=$(ZDOTDIR="$repo_root" zsh -lc '
+    [[ "$EDITOR" == "mate -w" ]] || {
+      print -u2 "Expected EDITOR to be mate -w"
+      exit 1
+    }
+
+    [[ "$VISUAL" == "$EDITOR" ]] || {
+      print -u2 "Expected VISUAL to match EDITOR"
+      exit 1
+    }
+
+    profile_path_size=${#path}
+    path+=("${path[1]}")
+    (( ${#path} == profile_path_size )) || {
+      print -u2 "Expected PATH entries to remain unique"
+      exit 1
+    }
+  ' 2>&1); then
+    printf '%s\n' "$output" >&2
+    return 1
+  fi
+}
+
+check_textmate_property_lists() {
+  local file output
+  local plist_status=0
+
+  for file in \
+    .config/textmate/Dotfiles.tmbundle/info.plist \
+    .config/textmate/Dotfiles.tmbundle/Themes/Dracula.tmTheme; do
+    if ! output=$(plutil -lint "$file" 2>&1); then
+      printf '%s\n' "$output" >&2
+      plist_status=1
+    fi
+  done
+
+  return "$plist_status"
+}
+
 printf 'Checking dotfiles...\n'
 
-run_check 'Unstaged whitespace' git --no-pager diff --check
+run_check 'Repository whitespace' check_repository_whitespace
 run_check 'Staged whitespace' git --no-pager diff --cached --check
-run_check 'Untracked whitespace' check_untracked_whitespace
-run_check 'Zsh syntax' zsh -n .zprofile .zshrc
+run_check 'Zsh syntax' zsh -n .zprofile .zshrc script/check
+run_check 'Shell environment' check_shell_environment
+run_check 'TextMate property lists' check_textmate_property_lists
 run_check 'Final newlines' check_final_newlines
 run_check 'macOS Icon ignore pattern' git check-ignore -q -- $'Icon\r'
 run_check 'macOS HFS ignore pattern' git check-ignore -q -- \

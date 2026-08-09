@@ -1,0 +1,7 @@
+# https://ghostty.org/docs/config/reference
+cursor-style = block
+font-family = GeistMono Nerd Font Mono
+font-size = 12
+macos-titlebar-style = tabs
+shell-integration-features = no-cursor
+theme = Vercel

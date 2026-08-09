@@ -1,4 +1,4 @@
-# http://editorconfig.org
+# https://editorconfig.org
 root = true
 
 [*]
@@ -12,7 +12,3 @@ trim_trailing_whitespace = true
 # This file contains intentional CR characters in macOS filename patterns.
 [.gitignore]
 end_of_line = unset
-
-# Markdown may use trailing spaces for explicit line breaks.
-[*.md]
-trim_trailing_whitespace = false
