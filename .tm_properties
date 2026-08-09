@@ -8,7 +8,7 @@ softTabs = true
 
 saveOnBlur = true
 
-exclude = "{$exclude,.git,.DS_Store,*.rdb}"
+exclude = "{$exclude,.git,.DS_Store,.*_cache,*.rdb}"
 excludeInBrowser = "{$excludeInBrowser,log,tmp}"
 
 include = "{$include,.*}"
