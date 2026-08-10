@@ -1,6 +1,6 @@
 # dotfiles
 
-Personal macOS configuration managed as symlinks from this repository.
+A set of hidden plain-text configuration files.
 
 ## Setup
 
