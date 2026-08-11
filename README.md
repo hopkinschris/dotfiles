@@ -76,9 +76,6 @@ TextMate's `mate -w` command as its editor.
 - `.editorconfig` defines shared editor behavior while `.gitattributes`
 normalizes text to LF. `.gitignore` is exempt because its macOS filename
 patterns contain intentional carriage returns.
-- [Hermes Agent](https://github.com/NousResearch/hermes-agent) commands are
-installed in `~/.local/bin`; its configuration and data remain in `~/.hermes`,
-outside this repository.
 - [Ghostty](https://github.com/ghostty-org/ghostty) reads its tracked
 configuration from `~/.config/ghostty/config.ghostty` and uses the Vercel theme
 with the Geist Mono Nerd Font variant for terminal glyphs.

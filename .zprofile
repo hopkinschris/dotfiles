@@ -9,9 +9,6 @@ fi
 export EDITOR="mate -w"
 export VISUAL="$EDITOR"
 
-# User-installed commands
-export PATH="$HOME/.local/bin:$PATH"
-
 # Mise shims
 # https://mise.jdx.dev/dev-tools/shims.html
 export PATH="$HOME/.local/share/mise/shims:$PATH"

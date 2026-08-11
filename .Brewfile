@@ -1,4 +1,3 @@
-brew "ffmpeg" # Hermes Agent
 brew "git"
 brew "mise"
 
