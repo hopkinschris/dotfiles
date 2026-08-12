@@ -1,4 +1,5 @@
 brew "git"
+brew "herdr"
 brew "mise"
 
 cask "codex"

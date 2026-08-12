@@ -11,6 +11,7 @@ symlinks:
 ```zsh
 mkdir -p \
   "$HOME/.config/ghostty" \
+  "$HOME/.config/herdr" \
   "$HOME/Library/Application Support/TextMate/Pristine Copy/Bundles"
 
 link_file() {
@@ -32,6 +33,8 @@ link_file "$PWD/.zprofile" "$HOME/.zprofile"
 link_file "$PWD/.zshrc" "$HOME/.zshrc"
 link_file "$PWD/.config/ghostty/config.ghostty" \
   "$HOME/.config/ghostty/config.ghostty"
+link_file "$PWD/.config/herdr/config.toml" \
+  "$HOME/.config/herdr/config.toml"
 link_file "$PWD/.config/textmate/Dotfiles.tmbundle" \
   "$HOME/Library/Application Support/TextMate/Pristine Copy/Bundles/Dotfiles.tmbundle"
 
@@ -52,8 +55,8 @@ script/check
 ```
 
 Checks repository whitespace and final newlines,
-[zsh](https://github.com/zsh-users/zsh) syntax and environment, TextMate
-property lists, and macOS ignore patterns.
+[zsh](https://github.com/zsh-users/zsh) syntax and environment, Herdr and
+TextMate configuration, and macOS ignore patterns.
 
 ## Homebrew
 
@@ -79,6 +82,9 @@ patterns contain intentional carriage returns.
 - [Ghostty](https://github.com/ghostty-org/ghostty) reads its tracked
 configuration from `~/.config/ghostty/config.ghostty` and uses the Vercel theme
 with the Geist Mono Nerd Font variant for terminal glyphs.
+- [Herdr](https://github.com/herdrdev/herdr) reads its tracked configuration from
+`~/.config/herdr/config.toml`, groups agents by workspace, and includes
+workspace descriptions in expanded sidebar rows when available.
 - [TextMate](https://github.com/textmate/textmate) reads `.tm_properties` and
 uses plain Geist Mono with the tracked
 [Dracula](https://github.com/dracula/textmate) theme. The

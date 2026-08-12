@@ -81,6 +81,16 @@ check_shell_environment() {
   fi
 }
 
+check_herdr_config() {
+  local output
+
+  if ! output=$(HERDR_CONFIG_PATH="$repo_root/.config/herdr/config.toml" \
+    herdr config check 2>&1); then
+    printf '%s\n' "$output" >&2
+    return 1
+  fi
+}
+
 check_textmate_property_lists() {
   local file output
   local plist_status=0
@@ -103,6 +113,7 @@ run_check 'Repository whitespace' check_repository_whitespace
 run_check 'Staged whitespace' git --no-pager diff --cached --check
 run_check 'Zsh syntax' zsh -n .zprofile .zshrc script/check
 run_check 'Shell environment' check_shell_environment
+run_check 'Herdr config' check_herdr_config
 run_check 'TextMate property lists' check_textmate_property_lists
 run_check 'Final newlines' check_final_newlines
 run_check 'macOS Icon ignore pattern' git check-ignore -q -- $'Icon\r'
