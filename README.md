@@ -66,8 +66,11 @@ Install the declared formulae and casks from the symlinked `.Brewfile`:
 brew bundle --global
 ```
 
-The TextMate cask also links its `mate` command into Homebrew's binary
+The `textmate` cask also links its `mate` command into Homebrew's binary
 directory.
+
+Afterwards, enable
+`Settings > Developer > Integrate with 1Password CLI` in `1Password.app`.
 
 ## Notes
 
@@ -90,5 +93,5 @@ uses plain Geist Mono with the tracked
 [Dracula](https://github.com/dracula/textmate) theme. The
 [EditorConfig–TextMate Plugin](https://github.com/Mr0grog/editorconfig-textmate)
 applies `.editorconfig` over overlapping TextMate settings.
-- Credentials are managed via [1Password](https://github.com/1password) and are
-not stored in this repository.
+- Credentials are managed via [1Password](https://github.com/1password) and remain
+outside this repository.
