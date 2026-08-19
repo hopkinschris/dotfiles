@@ -86,8 +86,8 @@ patterns contain intentional carriage returns.
 configuration from `~/.config/ghostty/config.ghostty` and uses the Vercel theme
 with the Geist Mono Nerd Font variant for terminal glyphs.
 - [Herdr](https://github.com/herdrdev/herdr) reads its tracked configuration from
-`~/.config/herdr/config.toml`, groups agents by workspace, and includes
-workspace descriptions in expanded sidebar rows when available.
+`~/.config/herdr/config.toml`, groups agents by workspace, and skips first-run
+onboarding.
 - [TextMate](https://github.com/textmate/textmate) reads `.tm_properties` and
 uses plain Geist Mono with the tracked
 [Dracula](https://github.com/dracula/textmate) theme. The
