@@ -4,7 +4,7 @@ A set of hidden plain-text configuration files.
 
 ## Setup
 
-This setup targets Apple silicon macOS and expects Homebrew at
+This setup targets Apple silicon macOS and expects [Homebrew](https://brew.sh/) at
 `/opt/homebrew`. From the repository root, create the required directories and
 symlinks:
 
@@ -58,7 +58,7 @@ Checks repository whitespace and final newlines,
 [zsh](https://github.com/zsh-users/zsh) syntax and environment, Herdr and
 TextMate configuration, and macOS ignore patterns.
 
-## Homebrew
+## [Homebrew](https://brew.sh/)
 
 Install the declared formulae and casks from the symlinked `.Brewfile`:
 
@@ -66,11 +66,14 @@ Install the declared formulae and casks from the symlinked `.Brewfile`:
 brew bundle --global
 ```
 
-The `textmate` cask also links its `mate` command into Homebrew's binary
-directory.
+The `textmate` cask also links its `mate` command into [Homebrew](https://brew.sh/)'s
+binary directory.
 
 Afterwards, enable
 `Settings > Developer > Integrate with 1Password CLI` in `1Password.app`.
+
+In Tailscale, add its command-line integration from Settings. This installs
+`/usr/local/bin/tailscale`; no shell configuration is required.
 
 ## Notes
 
@@ -88,6 +91,9 @@ with the Geist Mono Nerd Font variant for terminal glyphs.
 - [Herdr](https://github.com/herdrdev/herdr) reads its tracked configuration from
 `~/.config/herdr/config.toml`, groups agents by workspace, and skips first-run
 onboarding.
+- [Tailscale](https://github.com/tailscale) is installed through
+[Homebrew](https://brew.sh/) using its standalone macOS app; authentication and
+tailnet configuration remain outside this repository.
 - [TextMate](https://github.com/textmate/textmate) reads `.tm_properties` and
 uses plain Geist Mono with the tracked
 [Dracula](https://github.com/dracula/textmate) theme. The
