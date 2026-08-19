@@ -91,6 +91,9 @@ with the Geist Mono Nerd Font variant for terminal glyphs.
 - [Herdr](https://github.com/herdrdev/herdr) reads its tracked configuration from
 `~/.config/herdr/config.toml`, groups agents by workspace, and skips first-run
 onboarding.
+- [Little Snitch](https://github.com/obdev) is installed through
+[Homebrew](https://brew.sh/); its rules, traffic history, license, and
+network-extension approval remain outside this repository.
 - [Tailscale](https://github.com/tailscale) is installed through
 [Homebrew](https://brew.sh/) using its standalone macOS app; authentication and
 tailnet configuration remain outside this repository.
