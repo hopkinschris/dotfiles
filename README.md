@@ -133,6 +133,9 @@ configuration from `~/.config/ghostty/config.ghostty` and uses the bundled
 [Vercel theme](https://github.com/mbadolato/iTerm2-Color-Schemes#vercel). Its
 terminal font is
 [Geist Mono Nerd Font](https://github.com/ryanoasis/nerd-fonts/tree/master/patched-fonts/GeistMono).
+- [Google Chrome](https://formulae.brew.sh/cask/google-chrome) is installed
+through [Homebrew](https://brew.sh/); profiles and browser data remain outside
+this repository.
 - [Herdr](https://github.com/herdrdev/herdr) reads its tracked configuration
 from `~/.config/herdr/config.toml`, groups agents by workspace, and skips
 first-run onboarding.
@@ -143,10 +146,10 @@ first-run onboarding.
 [Geist Mono Nerd Font](https://github.com/ryanoasis/nerd-fonts/tree/master/patched-fonts/GeistMono).
 These preferences, Remote Login, pairing state, and SSH keys remain outside
 this repository.
-- [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) is
+- [Little Snitch](https://formulae.brew.sh/cask/little-snitch) is
 installed through [Homebrew](https://brew.sh); its rules, traffic history,
 license, and network-extension approval remain outside this repository.
-- [Tailscale](https://tailscale.com/) is installed through
+- [Tailscale](https://formulae.brew.sh/cask/tailscale-app) is installed through
 [Homebrew](https://brew.sh/) using its standalone macOS app; authentication and
 tailnet configuration remain outside this repository.
 - [TextMate](https://github.com/textmate/textmate) reads `.tm_properties` and
