@@ -85,6 +85,9 @@ TextMate's `mate -w` command as its editor.
 - `.editorconfig` defines shared editor behavior while `.gitattributes`
 normalizes text to LF. `.gitignore` is exempt because its macOS filename
 patterns contain intentional carriage returns.
+- [ChatGPT Classic](https://formulae.brew.sh/cask/chatgpt-classic) is installed
+through [Homebrew](https://brew.sh/) as the previous standalone desktop client;
+its application state remains separate from the `codex` cask and `~/.codex`.
 - [Ghostty](https://github.com/ghostty-org/ghostty) reads its tracked
 configuration from `~/.config/ghostty/config.ghostty` and uses the Vercel theme
 with the Geist Mono Nerd Font variant for terminal glyphs.
