@@ -91,6 +91,15 @@ check_herdr_config() {
   fi
 }
 
+check_moshi_config() {
+  local output
+
+  if ! output=$(XDG_CONFIG_HOME="$repo_root/.config" moshi-hook set 2>&1); then
+    printf '%s\n' "$output" >&2
+    return 1
+  fi
+}
+
 check_textmate_property_lists() {
   local file output
   local plist_status=0
@@ -114,6 +123,7 @@ run_check 'Staged whitespace' git --no-pager diff --cached --check
 run_check 'Zsh syntax' zsh -n .zprofile .zshrc script/check
 run_check 'Shell environment' check_shell_environment
 run_check 'Herdr config' check_herdr_config
+run_check 'Moshi config' check_moshi_config
 run_check 'TextMate property lists' check_textmate_property_lists
 run_check 'Final newlines' check_final_newlines
 run_check 'macOS Icon ignore pattern' git check-ignore -q -- $'Icon\r'

@@ -1,6 +1,10 @@
+tap "rjyo/moshi"
+
 brew "git"
 brew "herdr"
 brew "mise"
+brew "mosh"
+brew "moshi-hook"
 
 cask "1password"
 cask "1password-cli"

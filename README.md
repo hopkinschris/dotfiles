@@ -4,14 +4,16 @@ A set of hidden plain-text configuration files.
 
 ## Setup
 
-This setup targets Apple silicon macOS and expects [Homebrew](https://brew.sh/) at
-`/opt/homebrew`. From the repository root, create the required directories and
-symlinks:
+This setup targets Apple silicon macOS and expects
+[Homebrew](https://brew.sh/) at `/opt/homebrew`. From the repository root,
+create the required directories and symlinks. Existing symlink destinations
+are skipped:
 
 ```zsh
 mkdir -p \
   "$HOME/.config/ghostty" \
   "$HOME/.config/herdr" \
+  "$HOME/.config/moshi" \
   "$HOME/Library/Application Support/TextMate/Pristine Copy/Bundles"
 
 link_file() {
@@ -35,16 +37,19 @@ link_file "$PWD/.config/ghostty/config.ghostty" \
   "$HOME/.config/ghostty/config.ghostty"
 link_file "$PWD/.config/herdr/config.toml" \
   "$HOME/.config/herdr/config.toml"
+link_file "$PWD/.config/moshi/config.toml" \
+  "$HOME/.config/moshi/config.toml"
 link_file "$PWD/.config/textmate/Dotfiles.tmbundle" \
   "$HOME/Library/Application Support/TextMate/Pristine Copy/Bundles/Dotfiles.tmbundle"
 
 unfunction link_file
-
-defaults write com.macromates.TextMate foldersOnTop -bool true
 ```
 
-Run the TextMate preference command while TextMate is closed. Existing
-destinations are skipped.
+To show folders first in TextMate's project browser, close TextMate and run:
+
+```sh
+defaults write com.macromates.TextMate foldersOnTop -bool true
+```
 
 ## Validation
 
@@ -56,24 +61,59 @@ script/check
 
 Checks repository whitespace and final newlines,
 [zsh](https://github.com/zsh-users/zsh) syntax and environment, Herdr and
-TextMate configuration, and macOS ignore patterns.
+Moshi configuration, TextMate property lists, and macOS ignore patterns.
 
 ## [Homebrew](https://brew.sh/)
 
-Install the declared formulae and casks from the symlinked `.Brewfile`:
+Before the first bundle run, tap and trust Moshi's third-party repository:
+
+```sh
+brew tap rjyo/moshi
+brew trust rjyo/moshi
+```
+
+Then install the declared formulae and casks from the symlinked `.Brewfile`:
 
 ```sh
 brew bundle --global
 ```
 
-The `textmate` cask also links its `mate` command into [Homebrew](https://brew.sh/)'s
-binary directory.
+The `textmate` cask also links its `mate` command into
+[Homebrew](https://brew.sh/)'s binary directory.
 
 Afterwards, enable
 `Settings > Developer > Integrate with 1Password CLI` in `1Password.app`.
 
 In Tailscale, add its command-line integration from Settings. This installs
 `/usr/local/bin/tailscale`; no shell configuration is required.
+
+## [Moshi](https://getmoshi.app/)
+
+Enable `System Settings > General > Sharing > Remote Login` and keep Tailscale
+SSH disabled. Then pair the host from Moshi:
+
+```sh
+moshi-hook host setup
+```
+
+To enable agent integration, copy the token from `Moshi > Settings > Hooks` and
+run:
+
+```zsh
+read -rs "MOSHI_TOKEN?Moshi Hooks token: "; echo
+moshi-hook pair --token "$MOSHI_TOKEN"
+unset MOSHI_TOKEN
+moshi-hook install
+brew services start moshi-hook
+moshi-hook status
+```
+
+`moshi-hook install` registers Codex lifecycle hooks in
+`~/.codex/hooks.json`. In Codex—including when launched through Herdr—run
+`/hooks`, verify that the Moshi hooks execute
+`/opt/homebrew/bin/moshi-hook codex-hook`, and trust them. Until trusted, Codex
+skips the hooks, so Moshi agent status and hook-driven notifications will not
+update.
 
 ## Notes
 
@@ -89,15 +129,24 @@ patterns contain intentional carriage returns.
 through [Homebrew](https://brew.sh/) as the previous standalone desktop client;
 its application state remains separate from the `codex` cask and `~/.codex`.
 - [Ghostty](https://github.com/ghostty-org/ghostty) reads its tracked
-configuration from `~/.config/ghostty/config.ghostty` and uses the Vercel theme
-with the Geist Mono Nerd Font variant for terminal glyphs.
-- [Herdr](https://github.com/herdrdev/herdr) reads its tracked configuration from
-`~/.config/herdr/config.toml`, groups agents by workspace, and skips first-run
-onboarding.
-- [Little Snitch](https://github.com/obdev) is installed through
-[Homebrew](https://brew.sh/); its rules, traffic history, license, and
-network-extension approval remain outside this repository.
-- [Tailscale](https://github.com/tailscale) is installed through
+configuration from `~/.config/ghostty/config.ghostty` and uses the bundled
+[Vercel theme](https://github.com/mbadolato/iTerm2-Color-Schemes#vercel). Its
+terminal font is
+[Geist Mono Nerd Font](https://github.com/ryanoasis/nerd-fonts/tree/master/patched-fonts/GeistMono).
+- [Herdr](https://github.com/herdrdev/herdr) reads its tracked configuration
+from `~/.config/herdr/config.toml`, groups agents by workspace, and skips
+first-run onboarding.
+- [Moshi](https://getmoshi.app/) reads its tracked configuration from
+`~/.config/moshi/config.toml` and uses the Homebrew-installed `mosh` and
+`moshi-hook` formulae. Its appearance uses the
+[Vercel theme](https://getmoshi.app/themes/vercel) with an imported
+[Geist Mono Nerd Font](https://github.com/ryanoasis/nerd-fonts/tree/master/patched-fonts/GeistMono).
+These preferences, Remote Login, pairing state, and SSH keys remain outside
+this repository.
+- [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) is
+installed through [Homebrew](https://brew.sh); its rules, traffic history,
+license, and network-extension approval remain outside this repository.
+- [Tailscale](https://tailscale.com/) is installed through
 [Homebrew](https://brew.sh/) using its standalone macOS app; authentication and
 tailnet configuration remain outside this repository.
 - [TextMate](https://github.com/textmate/textmate) reads `.tm_properties` and
@@ -105,5 +154,5 @@ uses plain Geist Mono with the tracked
 [Dracula](https://github.com/dracula/textmate) theme. The
 [EditorConfig–TextMate Plugin](https://github.com/Mr0grog/editorconfig-textmate)
 applies `.editorconfig` over overlapping TextMate settings.
-- Credentials are managed via [1Password](https://github.com/1password) and remain
+- Credentials are managed via [1Password](https://1password.com/) and remain
 outside this repository.
