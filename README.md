@@ -84,6 +84,11 @@ The `textmate` cask also links its `mate` command into
 Afterwards, enable
 `Settings > Developer > Integrate with 1Password CLI` in `1Password.app`.
 
+In ChatGPT, install
+[Chrome](https://learn.chatgpt.com/docs/chrome-extension) from `Plugins` and
+approve the requested access. Manage the connection and website permissions
+under `Computer use`.
+
 In Tailscale, add its command-line integration from Settings. This installs
 `/usr/local/bin/tailscale`; no shell configuration is required.
 
@@ -125,9 +130,9 @@ TextMate's `mate -w` command as its editor.
 - `.editorconfig` defines shared editor behavior while `.gitattributes`
 normalizes text to LF. `.gitignore` is exempt because its macOS filename
 patterns contain intentional carriage returns.
-- [ChatGPT Classic](https://formulae.brew.sh/cask/chatgpt-classic) is installed
-through [Homebrew](https://brew.sh/) as the previous standalone desktop client;
-its application state remains separate from the `codex` cask and `~/.codex`.
+- [ChatGPT](https://formulae.brew.sh/cask/chatgpt) is installed through
+[Homebrew](https://brew.sh/) for Chrome extension support. Its Codex features
+share state under `~/.codex` with the `codex` cask.
 - [Ghostty](https://github.com/ghostty-org/ghostty) reads its tracked
 configuration from `~/.config/ghostty/config.ghostty` and uses the bundled
 [Vercel theme](https://github.com/mbadolato/iTerm2-Color-Schemes#vercel). Its

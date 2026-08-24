@@ -8,7 +8,7 @@ brew "moshi-hook"
 
 cask "1password"
 cask "1password-cli"
-cask "chatgpt-classic"
+cask "chatgpt"
 cask "codex"
 cask "font-geist-mono"
 cask "font-geist-mono-nerd-font"
