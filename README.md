@@ -120,6 +120,17 @@ moshi-hook status
 skips the hooks, so Moshi agent status and hook-driven notifications will not
 update.
 
+Background Codex usage collection is enabled in the tracked Moshi
+configuration. Verify the setting and send a test snapshot to Moshi with:
+
+```sh
+moshi-hook set usage-collection
+moshi-hook usage --sync
+```
+
+After changing this setting, restart the daemon with
+`brew services restart moshi-hook`.
+
 ## Notes
 
 - Native Zsh is used without a shell framework. `.zprofile` defines the login
