@@ -55,6 +55,94 @@ check_repository_whitespace() {
   return "$whitespace_status"
 }
 
+check_sensitive_filenames() {
+  local file filename
+  local filename_status=0
+
+  while IFS= read -r -d $'\0' file; do
+    filename=${file:t}
+    [[ "$filename" == '.env.example' ]] && continue
+
+    case $filename in
+      .env|.env.*|auth.json|credentials.json|*.key|*.pem|*.p12|*.pfx|\
+        id_dsa|id_ecdsa|id_ecdsa_sk|id_ed25519|id_ed25519_sk|id_rsa)
+        printf 'Sensitive filename tracked: %s\n' "$file" >&2
+        filename_status=1
+        ;;
+    esac
+  done < <(git ls-files -z --cached)
+
+  return "$filename_status"
+}
+
+check_secret_patterns() {
+  local file label matches pattern revision
+  local pattern_status=0
+  local index
+  local -a patterns revisions
+
+  patterns=(
+    'private-key material'
+    '-----BEGIN ([A-Z0-9 ]+ )?PRIVATE KEY-----'
+    'AWS access token'
+    '(AKIA|ASIA)[A-Z0-9]{16}'
+    'service access token'
+    'github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|sk-(proj-)?[A-Za-z0-9_-]{20,}'
+    'service access token'
+    'xox[baprs]-[A-Za-z0-9-]{10,}|AIza[A-Za-z0-9_-]{20,}|[sr]k_live_[A-Za-z0-9]{16,}'
+    'JWT-like value'
+    'eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}'
+    'credentialed URL'
+    'https?://[^[:space:]/:@]+:[^[:space:]@/]+@'
+    'credential assignment'
+    "(password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token|refresh[_-]?token|private[_-]?key)[[:space:]]*[:=][[:space:]]*['\\\"]?[A-Za-z0-9_+/=-]{8,}"
+  )
+
+  while IFS= read -r -d $'\0' file; do
+    [[ -f "$file" && -s "$file" ]] || continue
+    LC_ALL=C grep -Iq . "./$file" || continue
+
+    for (( index = 1; index <= ${#patterns}; index += 2 )); do
+      label=${patterns[index]}
+      pattern=${patterns[index + 1]}
+
+      if LC_ALL=C grep -IEq -- "$pattern" "./$file"; then
+        printf 'Potential %s: %s\n' "$label" "$file" >&2
+        pattern_status=1
+      fi
+    done
+  done < <(git ls-files -z --cached --others --exclude-standard)
+
+  revisions=($(git rev-list --all))
+  for (( index = 1; index <= ${#patterns}; index += 2 )); do
+    label=${patterns[index]}
+    pattern=${patterns[index + 1]}
+
+    if matches=$(git grep --cached -I -l -E -- "$pattern" 2>/dev/null); then
+      printf 'Potential %s in the Git index.\n' "$label" >&2
+      pattern_status=1
+    fi
+
+    for revision in $revisions; do
+      if matches=$(git grep -I -l -E -- "$pattern" "$revision" -- 2>/dev/null); then
+        printf 'Potential %s in repository history.\n' "$label" >&2
+        pattern_status=1
+        break
+      fi
+    done
+  done
+
+  return "$pattern_status"
+}
+
+check_zsh_syntax() {
+  local file
+
+  for file in .zprofile .zshrc script/check script/doctor; do
+    zsh -n "$file" || return 1
+  done
+}
+
 check_shell_environment() {
   local output
 
@@ -120,7 +208,9 @@ printf 'Checking dotfiles...\n'
 
 run_check 'Repository whitespace' check_repository_whitespace
 run_check 'Staged whitespace' git --no-pager diff --cached --check
-run_check 'Zsh syntax' zsh -n .zprofile .zshrc script/check
+run_check 'Sensitive filenames' check_sensitive_filenames
+run_check 'Secret patterns' check_secret_patterns
+run_check 'Zsh syntax' check_zsh_syntax
 run_check 'Shell environment' check_shell_environment
 run_check 'Herdr config' check_herdr_config
 run_check 'Moshi config' check_moshi_config

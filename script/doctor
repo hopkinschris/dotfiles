@@ -1,0 +1,462 @@
+#!/bin/zsh
+
+set -u
+
+repo_root=${0:A:h:h}
+cd "$repo_root" || exit 1
+
+doctor_status=0
+network_checks=0
+
+print_usage() {
+  printf 'Usage: script/doctor [--network]\n'
+}
+
+while (( $# )); do
+  case $1 in
+    --network) network_checks=1 ;;
+    -h|--help)
+      print_usage
+      exit 0
+      ;;
+    *)
+      printf 'Unknown option: %s\n' "$1" >&2
+      print_usage >&2
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+run_check() {
+  local label=$1
+  shift
+
+  if "$@"; then
+    printf '  [OK]   %s\n' "$label"
+  else
+    printf '  [FAIL] %s\n' "$label" >&2
+    doctor_status=1
+  fi
+}
+
+check_repository() {
+  local output
+
+  if ! output=$(script/check 2>&1); then
+    printf '%s\n' "$output" >&2
+    return 1
+  fi
+}
+
+check_symlinks() {
+  local source destination
+  local -a links
+  local link_status=0
+  local index
+
+  links=(
+    "$repo_root/.Brewfile"
+    "$HOME/.Brewfile"
+    "$repo_root/.gitconfig"
+    "$HOME/.gitconfig"
+    "$repo_root/.gitignore"
+    "$HOME/.gitignore"
+    "$repo_root/.tm_properties"
+    "$HOME/.tm_properties"
+    "$repo_root/.zprofile"
+    "$HOME/.zprofile"
+    "$repo_root/.zshrc"
+    "$HOME/.zshrc"
+    "$repo_root/.config/ghostty/config.ghostty"
+    "$HOME/.config/ghostty/config.ghostty"
+    "$repo_root/.config/herdr/config.toml"
+    "$HOME/.config/herdr/config.toml"
+    "$repo_root/.config/moshi/config.toml"
+    "$HOME/.config/moshi/config.toml"
+    "$repo_root/.config/textmate/Dotfiles.tmbundle"
+    "$HOME/Library/Application Support/TextMate/Pristine Copy/Bundles/Dotfiles.tmbundle"
+  )
+
+  for (( index = 1; index <= ${#links}; index += 2 )); do
+    source=${links[index]}
+    destination=${links[index + 1]}
+
+    if [[ ! -L "$destination" ]]; then
+      printf 'Expected symlink: %s\n' "$destination" >&2
+      link_status=1
+    elif [[ "${destination:A}" != "${source:A}" ]]; then
+      printf 'Unexpected symlink target: %s -> %s\n' \
+        "$destination" "$(readlink "$destination")" >&2
+      link_status=1
+    fi
+  done
+
+  return "$link_status"
+}
+
+check_required_commands() {
+  local name
+  local command_status=0
+  local -a commands
+
+  commands=(brew codex git herdr mate mise mosh moshi-hook op ssh-keygen)
+
+  for name in $commands; do
+    if ! command -v "$name" >/dev/null 2>&1; then
+      printf 'Command not found: %s\n' "$name" >&2
+      command_status=1
+    fi
+  done
+
+  return "$command_status"
+}
+
+report_machine_names() {
+  local computer_name='' local_host_name=''
+  local name_status=0
+
+  if ! computer_name=$(/usr/sbin/scutil --get ComputerName 2>/dev/null); then
+    printf 'Unable to read the macOS ComputerName.\n' >&2
+    name_status=1
+  fi
+
+  if ! local_host_name=$(
+    /usr/sbin/scutil --get LocalHostName 2>/dev/null
+  ); then
+    printf 'Unable to read the macOS LocalHostName.\n' >&2
+    name_status=1
+  fi
+
+  if (( name_status != 0 )); then
+    printf '  [FAIL] macOS machine names\n' >&2
+    doctor_status=1
+    return
+  fi
+
+  printf '  [INFO] ComputerName=%s LocalHostName=%s\n' \
+    "$computer_name" "$local_host_name"
+}
+
+check_git_identity() {
+  local config="$HOME/.gitconfig.local"
+  local email global_email global_name mode name
+
+  [[ -f "$config" ]] || {
+    printf 'Expected local Git identity file: %s\n' "$config" >&2
+    return 1
+  }
+
+  mode=$(/usr/bin/stat -f '%Lp' "$config")
+  [[ "$mode" == 600 ]] || {
+    printf 'Expected mode 600 for %s; found %s.\n' "$config" "$mode" >&2
+    return 1
+  }
+
+  name=$(git config --file "$config" --get user.name 2>/dev/null)
+  email=$(git config --file "$config" --get user.email 2>/dev/null)
+  global_name=$(git config --includes --global --get user.name 2>/dev/null)
+  global_email=$(git config --includes --global --get user.email 2>/dev/null)
+
+  [[ -n "$name" && -n "$email" && \
+    "$global_name" == "$name" && "$global_email" == "$email" ]] || {
+    printf 'Local Git identity is missing or not included globally.\n' >&2
+    return 1
+  }
+}
+
+check_homebrew_bundle() {
+  local output
+
+  if ! output=$(HOMEBREW_NO_AUTO_UPDATE=1 \
+    brew bundle check --no-upgrade --file="$repo_root/.Brewfile" 2>&1); then
+    printf '%s\n' "$output" >&2
+    return 1
+  fi
+}
+
+check_textmate_preference() {
+  [[ $(defaults read com.macromates.TextMate foldersOnTop 2>/dev/null) == 1 ]] || {
+    printf 'Expected TextMate foldersOnTop to be enabled.\n' >&2
+    return 1
+  }
+}
+
+check_tailscale_cli() {
+  [[ -x /usr/local/bin/tailscale ]] || {
+    printf 'Expected executable: /usr/local/bin/tailscale\n' >&2
+    return 1
+  }
+}
+
+check_tailscale_ssh_disabled() {
+  local output
+
+  if ! output=$(tailscale debug prefs 2>&1); then
+    printf '%s\n' "$output" >&2
+    return 1
+  fi
+
+  if printf '%s\n' "$output" | grep -Eq \
+    '^[[:space:]]*"RunSSH":[[:space:]]*false,?[[:space:]]*$'; then
+    return 0
+  fi
+
+  if printf '%s\n' "$output" | grep -Eq \
+    '^[[:space:]]*"RunSSH":[[:space:]]*true,?[[:space:]]*$'; then
+    printf 'Expected Tailscale SSH to be disabled.\n' >&2
+  else
+    printf 'Unable to determine the Tailscale RunSSH preference.\n' >&2
+  fi
+
+  return 1
+}
+
+check_remote_login_enabled() {
+  local output
+
+  if ! output=$(/bin/launchctl print-disabled system 2>&1); then
+    printf '%s\n' "$output" >&2
+    return 1
+  fi
+
+  if printf '%s\n' "$output" | grep -Eq \
+    '"com\.openssh\.sshd"[[:space:]]*=>[[:space:]]*enabled'; then
+    return 0
+  fi
+
+  if printf '%s\n' "$output" | grep -Eq \
+    '"com\.openssh\.sshd"[[:space:]]*=>[[:space:]]*disabled'; then
+    printf 'Expected macOS Remote Login to be enabled.\n' >&2
+  else
+    printf 'Unable to determine the macOS Remote Login state.\n' >&2
+  fi
+
+  return 1
+}
+
+check_ssh_permissions() {
+  local path mode expected
+  local permission_status=0
+  local -a files
+  local index
+
+  files=(
+    "$HOME/.ssh" 700
+    "$HOME/.ssh/config" 600
+    "$HOME/.ssh/op_authentication.pub" 644
+  )
+
+  for (( index = 1; index <= ${#files}; index += 2 )); do
+    path=${files[index]}
+    expected=${files[index + 1]}
+
+    if [[ ! -e "$path" ]]; then
+      printf 'Expected path: %s\n' "$path" >&2
+      permission_status=1
+      continue
+    fi
+
+    mode=$(/usr/bin/stat -f '%Lp' "$path")
+    if [[ "$mode" != "$expected" ]]; then
+      printf 'Expected mode %s for %s; found %s.\n' \
+        "$expected" "$path" "$mode" >&2
+      permission_status=1
+    fi
+  done
+
+  return "$permission_status"
+}
+
+check_public_key() {
+  local output
+
+  if ! output=$(ssh-keygen -lf "$HOME/.ssh/op_authentication.pub" 2>&1); then
+    printf '%s\n' "$output" >&2
+    return 1
+  fi
+
+  [[ "$output" == *' (ED25519)' ]] || {
+    printf 'Expected an Ed25519 authentication public key.\n' >&2
+    return 1
+  }
+}
+
+check_no_default_private_keys() {
+  local path
+  local key_status=0
+  local -a keys
+
+  keys=(
+    id_dsa
+    id_ecdsa
+    id_ecdsa_sk
+    id_ed25519
+    id_ed25519_sk
+    id_rsa
+  )
+
+  for path in $keys; do
+    if [[ -e "$HOME/.ssh/$path" ]]; then
+      printf 'Default private key remains on disk: ~/.ssh/%s\n' "$path" >&2
+      key_status=1
+    fi
+  done
+
+  return "$key_status"
+}
+
+check_1password_agent() {
+  local socket="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+
+  [[ -S "$socket" ]] || {
+    printf '1Password SSH agent socket is unavailable.\n' >&2
+    return 1
+  }
+}
+
+check_github_ssh_config() {
+  local output identity_agent identity_file
+  local expected_agent
+  local ssh_status=0
+
+  expected_agent="$HOME/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+
+  if ! output=$(ssh -G git@github.com 2>&1); then
+    printf '%s\n' "$output" >&2
+    return 1
+  fi
+
+  [[ "$output" == *$'\nuser git\n'* || "$output" == user\ git$'\n'* ]] || \
+    ssh_status=1
+  [[ "$output" == *$'\nhostname github.com\n'* ]] || ssh_status=1
+  [[ "$output" == *$'\nidentitiesonly yes\n'* ]] || ssh_status=1
+
+  identity_agent=$(printf '%s\n' "$output" | awk '$1 == "identityagent" {
+    sub(/^[^ ]+ /, ""); print; exit
+  }')
+  identity_file=$(printf '%s\n' "$output" | awk '$1 == "identityfile" {
+    print $2; exit
+  }')
+
+  [[ "$identity_agent" == "$expected_agent" ]] || ssh_status=1
+  [[ "$identity_file" == '~/.ssh/op_authentication.pub' || \
+    "$identity_file" == "$HOME/.ssh/op_authentication.pub" ]] || ssh_status=1
+
+  if (( ssh_status != 0 )); then
+    printf 'Unexpected effective GitHub SSH configuration:\n' >&2
+    printf '%s\n' "$output" | grep -E \
+      '^(hostname|user|identityfile|identityagent|identitiesonly) ' >&2
+  fi
+
+  return "$ssh_status"
+}
+
+check_codex_authentication() {
+  local output
+
+  if [[ -e "$HOME/.codex/auth.json" ]]; then
+    printf 'Codex auth.json should remain absent when using Keychain.\n' >&2
+    return 1
+  fi
+
+  if ! grep -Eq \
+    '^cli_auth_credentials_store[[:space:]]*=[[:space:]]*"keyring"' \
+    "$HOME/.codex/config.toml" 2>/dev/null; then
+    printf 'Expected cli_auth_credentials_store = "keyring" in Codex config.\n' >&2
+    return 1
+  fi
+
+  if ! output=$(codex login status 2>&1); then
+    printf '%s\n' "$output" >&2
+    return 1
+  fi
+
+  [[ "$output" == *'Logged in using ChatGPT'* ]] || {
+    printf '%s\n' "$output" >&2
+    return 1
+  }
+}
+
+check_moshi_status() {
+  local output
+  local moshi_status=0
+
+  if ! output=$(moshi-hook status 2>&1); then
+    printf '%s\n' "$output" >&2
+    return 1
+  fi
+
+  [[ "$output" == *'status:       paired'* ]] || moshi_status=1
+  [[ "$output" == *'secret store: keychain'* ]] || moshi_status=1
+  [[ "$output" == *'codex    current'* ]] || moshi_status=1
+  [[ "$output" == *'herdr:   /opt/homebrew/bin/herdr'* ]] || moshi_status=1
+
+  if (( moshi_status != 0 )); then
+    printf '%s\n' "$output" >&2
+  fi
+
+  return "$moshi_status"
+}
+
+check_github_authentication() {
+  local output
+
+  output=$(ssh -T git@github.com 2>&1)
+  [[ "$output" == *"You've successfully authenticated"* ]] || {
+    printf '%s\n' "$output" >&2
+    return 1
+  }
+}
+
+check_github_repository() {
+  local output
+
+  if ! output=$(git ls-remote origin HEAD 2>&1); then
+    printf '%s\n' "$output" >&2
+    return 1
+  fi
+
+  [[ "$output" == *$'\tHEAD' ]] || {
+    printf 'Expected origin HEAD; received: %s\n' "$output" >&2
+    return 1
+  }
+}
+
+printf 'Auditing local setup...\n'
+
+run_check 'Repository checks' check_repository
+run_check 'Managed symlinks' check_symlinks
+run_check 'Required commands' check_required_commands
+report_machine_names
+run_check 'Local Git identity' check_git_identity
+run_check 'Homebrew bundle' check_homebrew_bundle
+run_check 'TextMate folders first' check_textmate_preference
+run_check 'Tailscale command-line integration' check_tailscale_cli
+run_check 'Tailscale SSH disabled' check_tailscale_ssh_disabled
+run_check 'macOS Remote Login enabled' check_remote_login_enabled
+run_check 'SSH permissions' check_ssh_permissions
+run_check '1Password authentication public key' check_public_key
+run_check 'Default SSH private keys absent' check_no_default_private_keys
+run_check '1Password SSH agent' check_1password_agent
+run_check 'GitHub SSH configuration' check_github_ssh_config
+run_check 'Codex Keychain authentication' check_codex_authentication
+run_check 'Moshi integration' check_moshi_status
+
+if (( network_checks )); then
+  run_check 'GitHub SSH authentication' check_github_authentication
+  run_check 'GitHub repository access' check_github_repository
+else
+  printf '  [SKIP] GitHub network checks (use --network)\n'
+fi
+
+printf '  [VERIFY] 1Password.app > Settings > Developer > Watchtower > SSH keys\n'
+printf '  [VERIFY] 1Password.app > Settings > Developer > Advanced > Open SSH URLs with: Ghostty\n'
+printf '  [VERIFY] ChatGPT.app > Settings > Computer use > Google Chrome: ON\n'
+
+if (( doctor_status != 0 )); then
+  printf '\nLocal setup audit failed.\n' >&2
+  exit "$doctor_status"
+fi
+
+printf '\nLocal setup audit passed.\n'

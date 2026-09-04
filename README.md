@@ -45,6 +45,14 @@ link_file "$PWD/.config/textmate/Dotfiles.tmbundle" \
 unfunction link_file
 ```
 
+Store the machine's Git author identity outside the repository:
+
+```sh
+git config --file "$HOME/.gitconfig.local" user.name "Your Name"
+git config --file "$HOME/.gitconfig.local" user.email "you@example.com"
+chmod 600 "$HOME/.gitconfig.local"
+```
+
 To show folders first in TextMate's project browser, close TextMate and run:
 
 ```sh
@@ -59,9 +67,24 @@ Run this repository check before committing changes:
 script/check
 ```
 
-Checks repository whitespace and final newlines,
-[zsh](https://github.com/zsh-users/zsh) syntax and environment, Herdr and
-Moshi configuration, TextMate property lists, and macOS ignore patterns.
+Checks repository whitespace, sensitive filenames, secret patterns, and final
+newlines, [zsh](https://github.com/zsh-users/zsh) syntax and environment, Herdr
+and Moshi configuration, TextMate property lists, and macOS ignore patterns.
+
+Audit the local machine against the documented setup with:
+
+```sh
+script/doctor
+```
+
+Pass `--network` to also verify GitHub SSH authentication and repository
+access:
+
+```sh
+script/doctor --network
+```
+
+The doctor is read-only. UI-only checks are reported and require separate verification.
 
 ## [Homebrew](https://brew.sh/)
 
@@ -78,19 +101,68 @@ Then install the declared formulae and casks from the symlinked `.Brewfile`:
 brew bundle --global
 ```
 
-The `textmate` cask also links its `mate` command into
-[Homebrew](https://brew.sh/)'s binary directory.
+After completion:
 
-Afterwards, enable
-`Settings > Developer > Integrate with 1Password CLI` in `1Password.app`.
-
-In ChatGPT, install
+- In ChatGPT, install
 [Chrome](https://learn.chatgpt.com/docs/chrome-extension) from `Plugins` and
 approve the requested access. Manage the connection and website permissions
 under `Computer use`.
-
-In Tailscale, add its command-line integration from Settings. This installs
+- In Tailscale, add its command-line integration from Settings. This installs
 `/usr/local/bin/tailscale`; no shell configuration is required.
+- The `textmate` cask also links its `mate` command into
+[Homebrew](https://brew.sh/)'s binary directory.
+- Before signing in to Codex, add `cli_auth_credentials_store = "keyring"` at
+the top level of `~/.codex/config.toml`. This keeps credentials in Keychain and
+`~/.codex/auth.json` absent.
+
+## [1Password](https://1password.com/)
+
+### CLI
+
+Access 1Password from the terminal to load secrets, manage items, and more.
+
+Enable `Settings > Developer > Integrate with 1Password CLI`.
+
+### SSH Agent
+
+Manage your SSH keys, sign Git commits, and authorize SSH connections.
+
+For GitHub SSH access, follow
+[1Password's SSH guide](https://www.1password.dev/ssh/get-started):
+
+- Generate an Ed25519 key named `Authentication Key` in the Private vault and
+  register it with GitHub as an authentication key whose title is the output
+  of `scutil --get ComputerName`.
+- Download its public key to `~/.ssh/op_authentication.pub` and enable the
+  1Password SSH Agent. Display key names in authorization prompts and open SSH
+  URLs with Ghostty.
+- Decline 1Password's automatic SSH configuration edit, which targets
+  `Host *`, and configure only GitHub to use the agent:
+
+```sshconfig
+Host github.com
+  HostName github.com
+  User git
+  IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
+  IdentityFile ~/.ssh/op_authentication.pub
+  IdentitiesOnly yes
+```
+
+The private key remains in 1Password; the local identity file is only the
+public-key selector described in
+[1Password's advanced SSH configuration](https://www.1password.dev/ssh/agent/advanced).
+Verify the setup with:
+
+```sh
+ssh -T git@github.com
+git ls-remote origin HEAD
+```
+
+On first use, authorize Herdr with Touch ID and leave approval for all
+applications disabled.
+
+After removing obsolete local private keys, enable
+`Settings > Developer > Watchtower > SSH keys`.
 
 ## [Moshi](https://getmoshi.app/)
 

@@ -1,6 +1,5 @@
-[user]
-  name = Christopher Hopkins
-  email = ch@incognito.engineering
+[include]
+  path = ~/.gitconfig.local
 
 [core]
   editor = mate -w

@@ -57,3 +57,20 @@ Backups.backupdb
 .MobileBackups.trash
 MobileBackups.trash
 tmbootpicker.efi
+
+# Credentials and private keys
+.env
+.env.*
+!.env.example
+auth.json
+credentials.json
+*.key
+*.pem
+*.p12
+*.pfx
+id_dsa
+id_ecdsa
+id_ecdsa_sk
+id_ed25519
+id_ed25519_sk
+id_rsa
