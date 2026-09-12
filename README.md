@@ -164,7 +164,26 @@ applications disabled.
 After removing obsolete local private keys, enable
 `Settings > Developer > Watchtower > SSH keys`.
 
+## [Herdr](https://herdr.dev/)
+
+Use one workspace per active repository and keep its persistent tabs minimal:
+
+- `agent` — primary development session.
+- `shell` — Git operations and commands run manually.
+
+Prefer native
+[subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents) via
+`agents` for routine delegated work.
+
 ## [Moshi](https://getmoshi.app/)
+
+When working in this repository, use an optional `moshi` tab to run
+[Moshi Desktop](https://getmoshi.app/desktop) without opening its local web
+client at `http://127.0.0.1:24544` in a browser:
+
+```sh
+moshi --no-open
+```
 
 Enable `System Settings > General > Sharing > Remote Login` and keep Tailscale
 SSH disabled. Then pair the host from Moshi:
