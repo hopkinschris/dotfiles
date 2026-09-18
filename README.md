@@ -5,45 +5,28 @@ A set of hidden plain-text configuration files.
 ## Setup
 
 This setup targets Apple silicon macOS and expects
-[Homebrew](https://brew.sh/) at `/opt/homebrew`. From the repository root,
-create the required directories and symlinks. Existing symlink destinations
-are skipped:
+[Homebrew](https://brew.sh/) at `/opt/homebrew`. After obtaining the checkout,
+tap Moshi's repository and explicitly trust only its required formula:
 
-```zsh
-mkdir -p \
-  "$HOME/.config/ghostty" \
-  "$HOME/.config/herdr" \
-  "$HOME/.config/moshi" \
-  "$HOME/Library/Application Support/TextMate/Pristine Copy/Bundles"
-
-link_file() {
-  local source=$1
-  local destination=$2
-
-  if [[ -e "$destination" || -L "$destination" ]]; then
-    printf 'Skipping existing: %s\n' "$destination"
-  else
-    ln -s "$source" "$destination"
-  fi
-}
-
-link_file "$PWD/.Brewfile" "$HOME/.Brewfile"
-link_file "$PWD/.gitconfig" "$HOME/.gitconfig"
-link_file "$PWD/.gitignore" "$HOME/.gitignore"
-link_file "$PWD/.tm_properties" "$HOME/.tm_properties"
-link_file "$PWD/.zprofile" "$HOME/.zprofile"
-link_file "$PWD/.zshrc" "$HOME/.zshrc"
-link_file "$PWD/.config/ghostty/config.ghostty" \
-  "$HOME/.config/ghostty/config.ghostty"
-link_file "$PWD/.config/herdr/config.toml" \
-  "$HOME/.config/herdr/config.toml"
-link_file "$PWD/.config/moshi/config.toml" \
-  "$HOME/.config/moshi/config.toml"
-link_file "$PWD/.config/textmate/Dotfiles.tmbundle" \
-  "$HOME/Library/Application Support/TextMate/Pristine Copy/Bundles/Dotfiles.tmbundle"
-
-unfunction link_file
+```sh
+brew tap rjyo/moshi
+brew trust --formula rjyo/moshi/moshi-hook
 ```
+
+Then run setup from the repository root:
+
+```sh
+script/setup
+```
+
+Setup preflights every managed destination before making changes, accepts
+existing links that resolve to the intended sources, and never replaces a
+conflict. If preflight fails, it makes no changes. A later filesystem,
+Homebrew, or preference failure may leave safe partial progress; resolve the
+failure and rerun setup.
+
+TextMate may remain open when its folders-first preference is already enabled.
+If setup needs to change that preference, quit TextMate and rerun it.
 
 Store the machine's Git author identity outside the repository:
 
@@ -51,12 +34,6 @@ Store the machine's Git author identity outside the repository:
 git config --file "$HOME/.gitconfig.local" user.name "Your Name"
 git config --file "$HOME/.gitconfig.local" user.email "you@example.com"
 chmod 600 "$HOME/.gitconfig.local"
-```
-
-To show folders first in TextMate's project browser, close TextMate and run:
-
-```sh
-defaults write com.macromates.TextMate foldersOnTop -bool true
 ```
 
 ## Validation
@@ -67,9 +44,10 @@ Run this repository check before committing changes:
 script/check
 ```
 
-Checks repository whitespace, sensitive filenames, secret patterns, and final
-newlines, [zsh](https://github.com/zsh-users/zsh) syntax and environment, Herdr
-and Moshi configuration, TextMate property lists, and macOS ignore patterns.
+Checks setup behavior, repository whitespace, sensitive filenames, secret
+patterns, final newlines, [zsh](https://github.com/zsh-users/zsh) syntax and
+environment, Herdr and Moshi configuration, TextMate property lists, and macOS
+ignore patterns.
 
 Audit the local machine against the documented setup with:
 
@@ -88,18 +66,11 @@ The doctor is read-only. UI-only checks are reported and require separate verifi
 
 ## [Homebrew](https://brew.sh/)
 
-Before the first bundle run, tap and trust Moshi's third-party repository:
-
-```sh
-brew tap rjyo/moshi
-brew trust rjyo/moshi
-```
-
-Then install the declared formulae and casks from the symlinked `.Brewfile`:
-
-```sh
-brew bundle --global
-```
+Setup installs missing formulae and casks using `brew bundle --no-upgrade`,
+skipping upgrades of already-installed Brewfile entries. Installing missing
+packages may still update required dependencies. See the
+[Homebrew Bundle documentation](https://docs.brew.sh/Brew-Bundle-and-Brewfile)
+and [tap trust documentation](https://docs.brew.sh/Tap-Trust).
 
 After completion:
 
@@ -114,6 +85,14 @@ under `Computer use`.
 - Before signing in to Codex, add `cli_auth_credentials_store = "keyring"` at
 the top level of `~/.codex/config.toml`. This keeps credentials in Keychain and
 `~/.codex/auth.json` absent.
+
+For routine maintenance, audit the machine and refresh Homebrew metadata:
+
+```sh
+script/doctor && brew update
+```
+
+Run `brew upgrade` separately when ready to install available updates.
 
 ## [1Password](https://1password.com/)
 
@@ -146,6 +125,14 @@ Host github.com
   IdentityAgent "~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"
   IdentityFile ~/.ssh/op_authentication.pub
   IdentitiesOnly yes
+```
+
+Normalize the local SSH permissions expected by `script/doctor`:
+
+```sh
+chmod 700 "$HOME/.ssh"
+chmod 600 "$HOME/.ssh/config"
+chmod 644 "$HOME/.ssh/op_authentication.pub"
 ```
 
 The private key remains in 1Password; the local identity file is only the

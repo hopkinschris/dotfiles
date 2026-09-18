@@ -138,7 +138,14 @@ check_secret_patterns() {
 check_zsh_syntax() {
   local file
 
-  for file in .zprofile .zshrc script/check script/doctor; do
+  for file in \
+    .zprofile \
+    .zshrc \
+    script/check \
+    script/doctor \
+    script/lib/links.zsh \
+    script/setup \
+    script/test-setup; do
     zsh -n "$file" || return 1
   done
 }
@@ -211,6 +218,7 @@ run_check 'Staged whitespace' git --no-pager diff --cached --check
 run_check 'Sensitive filenames' check_sensitive_filenames
 run_check 'Secret patterns' check_secret_patterns
 run_check 'Zsh syntax' check_zsh_syntax
+run_check 'Setup fixtures' script/test-setup
 run_check 'Shell environment' check_shell_environment
 run_check 'Herdr config' check_herdr_config
 run_check 'Moshi config' check_moshi_config

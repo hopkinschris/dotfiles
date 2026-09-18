@@ -1,0 +1,319 @@
+#!/bin/zsh
+
+set -u
+
+repo_root=${0:A:h:h}
+source "$repo_root/script/lib/links.zsh" || exit 1
+
+test_root=$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-setup-test.XXXXXX") || exit 1
+test_root=${test_root:A}
+test_status=0
+
+cleanup() {
+  [[ -n "$test_root" && "$test_root" == *'/dotfiles-setup-test.'* ]] && \
+    rm -rf "$test_root"
+}
+
+trap cleanup EXIT
+
+fail() {
+  printf 'setup fixture failed: %s\n' "$1" >&2
+  test_status=1
+}
+
+assert_status() {
+  local expected=$1
+  local actual=$2
+  local label=$3
+
+  [[ "$actual" == "$expected" ]] || \
+    fail "$label (expected status $expected, received $actual)"
+}
+
+assert_contains() {
+  local value=$1
+  local expected=$2
+  local label=$3
+
+  [[ "$value" == *"$expected"* ]] || fail "$label (missing: $expected)"
+}
+
+make_stub() {
+  local stub_path=$1
+  shift
+
+  printf '%s\n' "$@" > "$stub_path" || return 1
+  chmod +x "$stub_path"
+}
+
+make_case() {
+  local name=$1
+  local source_relative source index
+
+  case_root="$test_root/$name"
+  case_repo="$case_root/fixture repo"
+  case_home="$case_root/home"
+  case_bin="$case_root/bin"
+  case_state="$case_root/state"
+
+  mkdir -p \
+    "$case_repo/script/lib" \
+    "$case_home" \
+    "$case_bin" \
+    "$case_state" || return 1
+
+  cp "$repo_root/script/setup" "$case_repo/script/setup" || return 1
+  cp "$repo_root/script/lib/links.zsh" \
+    "$case_repo/script/lib/links.zsh" || return 1
+  chmod +x "$case_repo/script/setup" || return 1
+
+  for (( index = 1; index <= ${#managed_links}; index += 2 )); do
+    source_relative=${managed_links[index]}
+    source="$case_repo/$source_relative"
+
+    if [[ "$source_relative" == .config/textmate/Dotfiles.tmbundle ]]; then
+      mkdir -p "$source" || return 1
+    else
+      mkdir -p "${source:h}" || return 1
+      printf 'fixture\n' > "$source" || return 1
+    fi
+  done
+
+  make_stub "$case_bin/brew" \
+    '#!/bin/sh' \
+    'state=${DOTFILES_TEST_STATE:?}' \
+    'if [ "${1-}" = --prefix ]; then' \
+    '  printf "%s\n" /opt/homebrew' \
+    '  exit 0' \
+    'fi' \
+    'if [ "${1-}" = bundle ]; then' \
+    '  printf "%s|%s\n" "${HOMEBREW_NO_AUTO_UPDATE-}" "$*" >> "$state/brew-calls"' \
+    '  [ ! -e "$state/fail-brew" ]' \
+    '  exit' \
+    'fi' \
+    'exit 1' || return 1
+
+  make_stub "$case_bin/defaults" \
+    '#!/bin/sh' \
+    'state=${DOTFILES_TEST_STATE:?}' \
+    'case "$*" in' \
+    '  "read com.macromates.TextMate foldersOnTop")' \
+    '    [ -f "$state/preference" ] || exit 1' \
+    '    /bin/cat "$state/preference"' \
+    '    ;;' \
+    '  "write com.macromates.TextMate foldersOnTop -bool true")' \
+    '    printf "%s\n" "$*" >> "$state/defaults-calls"' \
+    '    [ ! -e "$state/fail-defaults-write" ] || exit 1' \
+    '    printf "%s\n" 1 > "$state/preference"' \
+    '    ;;' \
+    '  *) exit 1 ;;' \
+    'esac' || return 1
+
+  make_stub "$case_bin/pgrep" \
+    '#!/bin/sh' \
+    '[ -e "${DOTFILES_TEST_STATE:?}/textmate-running" ]' || return 1
+
+  make_stub "$case_bin/uname" \
+    '#!/bin/sh' \
+    '[ "${1-}" = -s ] && { printf "%s\n" Darwin; exit 0; }' \
+    'exec /usr/bin/uname "$@"' || return 1
+
+}
+
+run_setup() {
+  DOTFILES_TEST_STATE="$case_state" \
+    HOME="$case_home" \
+    PATH="$case_bin:/usr/bin:/bin" \
+    "$case_repo/script/setup" "$@"
+}
+
+check_links() {
+  local source destination index
+
+  for (( index = 1; index <= ${#managed_links}; index += 2 )); do
+    source="$case_repo/${managed_links[index]}"
+    destination="$case_home/${managed_links[index + 1]}"
+
+    [[ -L "$destination" ]] || {
+      fail "missing managed link: $destination"
+      continue
+    }
+    [[ "${destination:A}" == "${source:A}" ]] || \
+      fail "unexpected managed link target: $destination"
+  done
+}
+
+check_absolute_links() {
+  local destination index
+
+  for (( index = 1; index <= ${#managed_links}; index += 2 )); do
+    destination="$case_home/${managed_links[index + 1]}"
+    [[ $(readlink "$destination") == /* ]] || \
+      fail "managed link is not absolute: $destination"
+  done
+}
+
+test_fresh_and_repeated_setup() {
+  local output command_status writes_before writes_after
+
+  make_case 'fresh setup' || {
+    fail 'unable to create fresh setup fixture'
+    return
+  }
+
+  mkdir -p "$case_root/config target" || {
+    fail 'unable to create symlinked-parent fixture directory'
+    return
+  }
+  ln -s "$case_root/config target" "$case_home/.config" || {
+    fail 'unable to create symlinked-parent fixture link'
+    return
+  }
+
+  output=$(cd / && run_setup 2>&1)
+  command_status=$?
+  assert_status 0 "$command_status" 'fresh setup'
+  check_links
+  check_absolute_links
+
+  [[ -f "$case_state/preference" ]] || \
+    fail 'fresh setup did not write the preference'
+  assert_contains "$(<"$case_state/brew-calls")" \
+    "1|bundle --no-upgrade --file=$case_repo/.Brewfile" \
+    'Homebrew bundle invocation'
+
+  writes_before=$(wc -l < "$case_state/defaults-calls" | tr -d '[:space:]')
+  rm "$case_home/.Brewfile"
+  ln -s '../fixture repo/.Brewfile' "$case_home/.Brewfile"
+  : > "$case_state/textmate-running"
+  output=$(run_setup 2>&1)
+  command_status=$?
+  assert_status 0 "$command_status" 'repeated setup'
+  check_links
+  writes_after=$(wc -l < "$case_state/defaults-calls" | tr -d '[:space:]')
+  [[ "$writes_after" == "$writes_before" ]] || \
+    fail 'repeated setup rewrote an enabled preference'
+}
+
+test_conflicts_do_not_mutate() {
+  local output command_status
+
+  make_case 'conflicts' || {
+    fail 'unable to create conflict fixture'
+    return
+  }
+
+  printf 'local file\n' > "$case_home/.zshrc"
+  printf 'wrong target\n' > "$case_root/wrong"
+  ln -s "$case_root/wrong" "$case_home/.zprofile"
+  ln -s "$case_root/missing" "$case_home/.gitignore"
+  rm "$case_repo/.gitignore"
+  printf 'not a directory\n' > "$case_home/.config"
+
+  output=$(run_setup 2>&1)
+  command_status=$?
+  assert_status 1 "$command_status" 'conflict preflight'
+  assert_contains "$output" "$case_home/.zshrc" 'regular-file conflict'
+  assert_contains "$output" "$case_home/.zprofile" 'wrong-link conflict'
+  assert_contains "$output" "$case_home/.gitignore" 'dangling-link conflict'
+  assert_contains "$output" "$case_repo/.gitignore" 'missing source'
+  assert_contains "$output" "$case_home/.config" 'invalid parent'
+  [[ "$(<"$case_home/.zshrc")" == 'local file' ]] || \
+    fail 'conflict preflight changed a regular file'
+  [[ "$(readlink "$case_home/.zprofile")" == "$case_root/wrong" ]] || \
+    fail 'conflict preflight changed an unexpected symlink'
+  [[ "$(readlink "$case_home/.gitignore")" == "$case_root/missing" ]] || \
+    fail 'conflict preflight changed a dangling symlink'
+  [[ "$(<"$case_home/.config")" == 'not a directory' ]] || \
+    fail 'conflict preflight changed an invalid parent'
+  [[ ! -e "$case_home/.Brewfile" ]] || \
+    fail 'conflict preflight created a managed link'
+  [[ ! -e "$case_state/brew-calls" ]] || \
+    fail 'conflict preflight invoked Homebrew'
+  [[ ! -e "$case_state/defaults-calls" ]] || \
+    fail 'conflict preflight wrote the TextMate preference'
+}
+
+test_textmate_states() {
+  local output command_status
+
+  make_case 'TextMate blocked' || {
+    fail 'unable to create blocked TextMate fixture'
+    return
+  }
+  : > "$case_state/textmate-running"
+
+  output=$(run_setup 2>&1)
+  command_status=$?
+  assert_status 1 "$command_status" 'running TextMate with preference change needed'
+  [[ ! -e "$case_home/.Brewfile" ]] || \
+    fail 'TextMate preflight failure created a managed link'
+  [[ ! -e "$case_state/brew-calls" ]] || \
+    fail 'TextMate preflight failure invoked Homebrew'
+}
+
+test_apply_failures() {
+  local output command_status
+
+  make_case 'link failure' || {
+    fail 'unable to create link-failure fixture'
+    return
+  }
+  make_stub "$case_bin/ln" \
+    '#!/bin/sh' \
+    'exit 1'
+
+  output=$(run_setup 2>&1)
+  command_status=$?
+  assert_status 1 "$command_status" 'link creation failure'
+  [[ ! -e "$case_state/brew-calls" ]] || \
+    fail 'link failure did not stop Homebrew'
+
+  rm "$case_bin/ln"
+  : > "$case_state/fail-brew"
+
+  output=$(run_setup 2>&1)
+  command_status=$?
+  assert_status 1 "$command_status" 'Homebrew bundle failure'
+  [[ ! -e "$case_state/defaults-calls" ]] || \
+    fail 'Homebrew failure did not stop preference changes'
+  check_links
+
+  rm "$case_state/fail-brew"
+  : > "$case_state/fail-defaults-write"
+
+  output=$(run_setup 2>&1)
+  command_status=$?
+  assert_status 1 "$command_status" 'preference write failure'
+  [[ -e "$case_state/brew-calls" ]] || \
+    fail 'preference failure occurred before Homebrew'
+}
+
+test_arguments_and_working_directory() {
+  local output command_status
+
+  output=$("$repo_root/script/setup" --help 2>&1)
+  command_status=$?
+  assert_status 0 "$command_status" 'setup help'
+  assert_contains "$output" 'Usage: script/setup' 'setup help output'
+
+  output=$("$repo_root/script/setup" --unknown 2>&1)
+  command_status=$?
+  assert_status 2 "$command_status" 'unknown setup argument'
+
+  output=$("$repo_root/script/setup" '' 2>&1)
+  command_status=$?
+  assert_status 2 "$command_status" 'empty setup argument'
+
+  output=$("$repo_root/script/setup" --help extra 2>&1)
+  command_status=$?
+  assert_status 2 "$command_status" 'extra setup argument'
+}
+
+test_fresh_and_repeated_setup
+test_conflicts_do_not_mutate
+test_textmate_states
+test_apply_failures
+test_arguments_and_working_directory
+
+exit "$test_status"

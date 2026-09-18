@@ -3,6 +3,7 @@
 set -u
 
 repo_root=${0:A:h:h}
+source "$repo_root/script/lib/links.zsh" || exit 1
 cd "$repo_root" || exit 1
 
 doctor_status=0
@@ -40,47 +41,14 @@ run_check() {
   fi
 }
 
-check_repository() {
-  local output
-
-  if ! output=$(script/check 2>&1); then
-    printf '%s\n' "$output" >&2
-    return 1
-  fi
-}
-
 check_symlinks() {
   local source destination
-  local -a links
   local link_status=0
   local index
 
-  links=(
-    "$repo_root/.Brewfile"
-    "$HOME/.Brewfile"
-    "$repo_root/.gitconfig"
-    "$HOME/.gitconfig"
-    "$repo_root/.gitignore"
-    "$HOME/.gitignore"
-    "$repo_root/.tm_properties"
-    "$HOME/.tm_properties"
-    "$repo_root/.zprofile"
-    "$HOME/.zprofile"
-    "$repo_root/.zshrc"
-    "$HOME/.zshrc"
-    "$repo_root/.config/ghostty/config.ghostty"
-    "$HOME/.config/ghostty/config.ghostty"
-    "$repo_root/.config/herdr/config.toml"
-    "$HOME/.config/herdr/config.toml"
-    "$repo_root/.config/moshi/config.toml"
-    "$HOME/.config/moshi/config.toml"
-    "$repo_root/.config/textmate/Dotfiles.tmbundle"
-    "$HOME/Library/Application Support/TextMate/Pristine Copy/Bundles/Dotfiles.tmbundle"
-  )
-
-  for (( index = 1; index <= ${#links}; index += 2 )); do
-    source=${links[index]}
-    destination=${links[index + 1]}
+  for (( index = 1; index <= ${#managed_links}; index += 2 )); do
+    source="$repo_root/${managed_links[index]}"
+    destination="$HOME/${managed_links[index + 1]}"
 
     if [[ ! -L "$destination" ]]; then
       printf 'Expected symlink: %s\n' "$destination" >&2
@@ -425,7 +393,6 @@ check_github_repository() {
 
 printf 'Auditing local setup...\n'
 
-run_check 'Repository checks' check_repository
 run_check 'Managed symlinks' check_symlinks
 run_check 'Required commands' check_required_commands
 report_machine_names

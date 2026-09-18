@@ -1,0 +1,192 @@
+#!/bin/zsh
+
+set -u
+
+repo_root=${0:A:h:h}
+source "$repo_root/script/lib/links.zsh" || exit 1
+
+print_usage() {
+  printf 'Usage: script/setup\n'
+}
+
+if (( $# == 0 )); then
+  :
+elif (( $# == 1 )) && [[ "$1" == -h || "$1" == --help ]]; then
+  print_usage
+  exit 0
+else
+  printf 'Unexpected argument: %s\n' "${1-}" >&2
+  print_usage >&2
+  exit 2
+fi
+
+preflight_status=0
+home_valid=1
+textmate_preference_enabled=0
+
+preflight_error() {
+  printf '  [FAIL] %s\n' "$1" >&2
+  preflight_status=1
+}
+
+link_matches() {
+  local source=$1
+  local destination=$2
+
+  [[ -L "$destination" && -e "$destination" && \
+    "${destination:A}" == "${source:A}" ]]
+}
+
+check_parent_chain() {
+  local parent=${1:h}
+
+  while [[ "$parent" != / ]]; do
+    if [[ -L "$parent" ]]; then
+      if [[ ! -e "$parent" ]]; then
+        preflight_error "Broken parent symlink: $parent"
+        return
+      elif [[ ! -d "$parent" ]]; then
+        preflight_error "Parent symlink does not resolve to a directory: $parent"
+        return
+      fi
+    elif [[ -e "$parent" && ! -d "$parent" ]]; then
+      preflight_error "Parent path is not a directory: $parent"
+      return
+    fi
+
+    parent=${parent:h}
+  done
+}
+
+printf 'Preflighting local dotfiles setup...\n'
+
+[[ $(uname -s 2>/dev/null) == Darwin ]] || \
+  preflight_error 'macOS is required.'
+
+(( EUID != 0 )) || preflight_error 'Run setup as a non-root user.'
+
+if [[ -z ${HOME:-} || "$HOME" != /* || ! -d "$HOME" ]]; then
+  preflight_error 'HOME must be an existing absolute directory.'
+  home_valid=0
+fi
+
+if ! command -v brew >/dev/null 2>&1 && [[ -x /opt/homebrew/bin/brew ]]; then
+  path=(/opt/homebrew/bin $path)
+fi
+
+if ! command -v brew >/dev/null 2>&1; then
+  preflight_error 'Homebrew is required at /opt/homebrew.'
+elif ! brew_prefix=$(brew --prefix 2>/dev/null); then
+  preflight_error 'Unable to determine the Homebrew prefix.'
+elif [[ "$brew_prefix" != /opt/homebrew ]]; then
+  preflight_error "Expected Homebrew prefix /opt/homebrew; found $brew_prefix."
+fi
+
+command -v defaults >/dev/null 2>&1 || \
+  preflight_error 'The macOS defaults command is required.'
+command -v pgrep >/dev/null 2>&1 || \
+  preflight_error 'The macOS pgrep command is required.'
+
+for (( index = 1; index <= ${#managed_links}; index += 2 )); do
+  source_relative=${managed_links[index]}
+  source="$repo_root/$source_relative"
+
+  if [[ "$source_relative" == .config/textmate/Dotfiles.tmbundle ]]; then
+    [[ -d "$source" && -r "$source" ]] || \
+      preflight_error "Expected readable source directory: $source"
+  else
+    [[ -f "$source" && -r "$source" ]] || \
+      preflight_error "Expected readable source file: $source"
+  fi
+
+  (( home_valid )) || continue
+
+  destination="$HOME/${managed_links[index + 1]}"
+  check_parent_chain "$destination"
+
+  if [[ -L "$destination" ]]; then
+    if [[ ! -e "$destination" ]]; then
+      preflight_error "Dangling destination symlink: $destination"
+    elif ! link_matches "$source" "$destination"; then
+      preflight_error "Unexpected destination symlink: $destination -> $(readlink "$destination")"
+    fi
+  elif [[ -e "$destination" ]]; then
+    preflight_error "Destination already exists and is not managed: $destination"
+  fi
+done
+
+if command -v defaults >/dev/null 2>&1; then
+  preference=$(defaults read com.macromates.TextMate foldersOnTop 2>/dev/null) || \
+    preference=''
+  [[ "$preference" == 1 ]] && textmate_preference_enabled=1
+fi
+
+if (( ! textmate_preference_enabled )) && \
+  command -v pgrep >/dev/null 2>&1 && pgrep -x TextMate >/dev/null 2>&1; then
+  preflight_error 'Quit TextMate before changing its foldersOnTop preference.'
+fi
+
+if (( preflight_status != 0 )); then
+  printf '\nSetup preflight failed; no changes were made.\n' >&2
+  exit "$preflight_status"
+fi
+
+printf 'Applying local dotfiles setup...\n'
+
+for (( index = 1; index <= ${#managed_links}; index += 2 )); do
+  source="$repo_root/${managed_links[index]}"
+  destination="$HOME/${managed_links[index + 1]}"
+  parent=${destination:h}
+
+  if [[ ! -d "$parent" ]] && ! mkdir -p "$parent"; then
+    printf '  [FAIL] Unable to create directory: %s\n' "$parent" >&2
+    exit 1
+  fi
+
+  if link_matches "$source" "$destination"; then
+    continue
+  elif [[ -e "$destination" || -L "$destination" ]]; then
+    printf '  [FAIL] Destination changed after preflight: %s\n' \
+      "$destination" >&2
+    exit 1
+  elif ! ln -s "$source" "$destination"; then
+    printf '  [FAIL] Unable to create symlink: %s\n' "$destination" >&2
+    exit 1
+  fi
+done
+
+printf '  [OK]   Managed symlinks\n'
+
+if ! HOMEBREW_NO_AUTO_UPDATE=1 brew bundle --no-upgrade \
+  --file="$repo_root/.Brewfile"; then
+  printf '  [FAIL] Homebrew bundle\n' >&2
+  exit 1
+fi
+
+printf '  [OK]   Homebrew bundle\n'
+
+preference=$(defaults read com.macromates.TextMate foldersOnTop 2>/dev/null) || \
+  preference=''
+
+if [[ "$preference" != 1 ]]; then
+  if pgrep -x TextMate >/dev/null 2>&1; then
+    printf '  [FAIL] TextMate opened after preflight; quit it and rerun setup.\n' >&2
+    exit 1
+  fi
+
+  if ! defaults write com.macromates.TextMate foldersOnTop -bool true; then
+    printf '  [FAIL] Unable to set the TextMate foldersOnTop preference.\n' >&2
+    exit 1
+  fi
+
+  preference=$(defaults read com.macromates.TextMate foldersOnTop 2>/dev/null) || \
+    preference=''
+  if [[ "$preference" != 1 ]]; then
+    printf '  [FAIL] Unable to verify the TextMate foldersOnTop preference.\n' >&2
+    exit 1
+  fi
+fi
+
+printf '  [OK]   TextMate folders first\n'
+printf '\nLocal dotfiles setup complete.\n'
+printf 'Complete the manual steps in README.md, then run script/doctor.\n'
