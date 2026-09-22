@@ -44,10 +44,11 @@ Run this repository check before committing changes:
 script/check
 ```
 
-Checks setup behavior, repository whitespace, sensitive filenames, secret
-patterns, final newlines, [zsh](https://github.com/zsh-users/zsh) syntax and
-environment, Herdr and Moshi configuration, TextMate property lists, and macOS
-ignore patterns.
+Checks setup behavior, repository whitespace, sensitive filenames, working
+files, staged content, and Git history with
+[Gitleaks](https://github.com/gitleaks/gitleaks), final newlines,
+[zsh](https://github.com/zsh-users/zsh) syntax and environment, Herdr and Moshi
+configuration, TextMate property lists, and macOS ignore patterns.
 
 Audit the local machine against the documented setup with:
 

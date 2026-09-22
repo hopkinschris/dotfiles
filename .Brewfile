@@ -1,6 +1,7 @@
 tap "rjyo/moshi"
 
 brew "git"
+brew "gitleaks"
 brew "herdr"
 brew "mise"
 brew "mosh"

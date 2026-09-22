@@ -68,7 +68,7 @@ check_required_commands() {
   local command_status=0
   local -a commands
 
-  commands=(brew codex git herdr mate mise mosh moshi-hook op ssh-keygen)
+  commands=(brew codex git gitleaks herdr mate mise mosh moshi-hook op ssh-keygen)
 
   for name in $commands; do
     if ! command -v "$name" >/dev/null 2>&1; then
