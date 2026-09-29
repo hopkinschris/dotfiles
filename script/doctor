@@ -68,7 +68,7 @@ check_required_commands() {
   local command_status=0
   local -a commands
 
-  commands=(brew codex git gitleaks herdr mate mise mosh moshi-hook op ssh-keygen)
+  commands=(brew codex git gitleaks herdr jq mate mise mosh moshi-hook op ssh-keygen)
 
   for name in $commands; do
     if ! command -v "$name" >/dev/null 2>&1; then
@@ -348,23 +348,25 @@ check_codex_authentication() {
 
 check_moshi_status() {
   local output
-  local moshi_status=0
 
-  if ! output=$(moshi-hook status 2>&1); then
+  if ! output=$(moshi-hook status --json 2>&1); then
     printf '%s\n' "$output" >&2
     return 1
   fi
 
-  [[ "$output" == *'status:       paired'* ]] || moshi_status=1
-  [[ "$output" == *'secret store: keychain'* ]] || moshi_status=1
-  [[ "$output" == *'codex    current'* ]] || moshi_status=1
-  [[ "$output" == *'herdr:   /opt/homebrew/bin/herdr'* ]] || moshi_status=1
-
-  if (( moshi_status != 0 )); then
-    printf '%s\n' "$output" >&2
+  if ! jq -e '
+    .paired == true and
+    .secretStore == "keychain" and
+    any(.hooks[]; .target == "codex" and .status == "current")
+  ' <<< "$output" >/dev/null 2>&1; then
+    printf 'Expected Moshi paired with Keychain and Codex hooks current.\n' >&2
+    return 1
   fi
 
-  return "$moshi_status"
+  if [[ "$(command -v herdr)" != '/opt/homebrew/bin/herdr' ]]; then
+    printf 'Expected Herdr at /opt/homebrew/bin/herdr.\n' >&2
+    return 1
+  fi
 }
 
 check_github_authentication() {
